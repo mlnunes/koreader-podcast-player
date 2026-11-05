@@ -75,6 +75,21 @@ assert(library:setFeedArtwork("feed", "https://example.com/art.jpg",
     "/mnt/us/koreader/podcasts/artwork/feed.jpg"))
 assert(library:hasArtwork(feed), "a saved artwork image should be detected")
 
+local old_episode = feed.episodes[1]
+local abs_episode = feed.episodes[2]
+old_episode.position = 12
+abs_episode.position = 5
+local marked_ok, marked_count = library:setFeedEpisodesPlayed("feed", true)
+assert(marked_ok and marked_count == 2, "all episodes should be marked in one operation")
+assert(old_episode.played and abs_episode.played, "bulk mark should update every episode")
+assert(old_episode.position == 12 and abs_episode.position == 5,
+    "marking as played should preserve saved positions")
+
+library:setFeedEpisodesPlayed("feed", false)
+assert(not old_episode.played and not abs_episode.played, "bulk unmark should clear played flags")
+assert(old_episode.position == 0 and abs_episode.position == 0,
+    "bulk unmark should reset playback positions")
+
 local queue = library:getDownloadedQueue("feed", "old")
 assert(#queue == 2, "both downloaded episodes should be queued")
 assert(queue[1] == "/mnt/us/koreader/podcasts/old.mp3", "the queue must hold absolute paths")

@@ -248,6 +248,21 @@ function Library:setPlayed(feed_id, episode_id, played)
     return true
 end
 
+function Library:setFeedEpisodesPlayed(feed_id, played)
+    local feed = self:getFeed(feed_id)
+    if not feed then return false, 0 end
+
+    local count = 0
+    played = played and true or false
+    for _, episode in ipairs(feed.episodes or {}) do
+        episode.played = played
+        if not played then episode.position = 0 end
+        count = count + 1
+    end
+    self:flush()
+    return true, count
+end
+
 function Library:getDownloadedQueue(feed_id, episode_id)
     local queue, selected_index = {}, nil
     for _, feed in ipairs(self.feeds) do

@@ -38,7 +38,7 @@ local function fetch_feed(url, redirects)
     local call_ok, ok, code, headers, status = pcall(requester.request, {
         url = url,
         sink = sink,
-        headers = { ["User-Agent"] = "KOReader-Podcasts/0.3.3" },
+        headers = { ["User-Agent"] = "KOReader-Podcasts/0.3.4" },
     })
     socketutil:reset_timeout()
     if not call_ok then return false, tostring(ok) end
@@ -201,6 +201,20 @@ function Podcasts:openFeed(feed_id)
             text = (episode.title or gettext("Untitled episode")) .. date,
             mandatory = status,
             callback = function() self:showEpisodeActions(feed_id, episode_id) end,
+        })
+    end
+    if #(feed.episodes or {}) > 0 then
+        table.insert(items, {
+            text = _("Mark all episodes as played"),
+            callback = self:guardCallback("mark all feed episodes as played", function()
+                local ok = self.library:setFeedEpisodesPlayed(feed_id, true)
+                if not ok then
+                    self:showMessage(_("Podcast feed not found"))
+                    return
+                end
+                self:refreshVisibleFeed(feed_id)
+                self:showMessage(_("All episodes marked as played"))
+            end),
         })
     end
     table.insert(items, {
