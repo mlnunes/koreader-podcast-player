@@ -1,6 +1,23 @@
 -- Small, non-validating XML reader for the RSS 2.0 and Atom fields this plugin
 -- needs. External entities and DTDs are ignored; feed data is never executed.
 local Parser = {}
+local MAX_EPISODES = 500
+
+local rss_episode_fields = {
+    title = true,
+    guid = true,
+    pubdate = true,
+    ["dc:date"] = true,
+    enclosure = true,
+    ["media:content"] = true,
+}
+local atom_episode_fields = {
+    title = true,
+    id = true,
+    published = true,
+    updated = true,
+    link = true,
+}
 
 local function utf8char(codepoint)
     if codepoint < 0x80 then
@@ -58,6 +75,7 @@ local function parse_attributes(rest)
 end
 
 local function append_text(node, text, decode)
+    if node.skip then return end
     if decode then text = decode_entities(text) end
     table.insert(node.content, text)
 end
@@ -67,21 +85,26 @@ local function parse_xml(xml)
     local root = { name = "#document", attrs = {}, children = {}, content = {} }
     local stack = { root }
     local pos = 1
+    local episode_count = 0
 
     while pos <= #xml do
         local lt = xml:find("<", pos, true)
         if not lt then
-            append_text(stack[#stack], xml:sub(pos), true)
+            if not stack[#stack].skip then
+                append_text(stack[#stack], xml:sub(pos), true)
+            end
             break
         end
-        if lt > pos then
+        if lt > pos and not stack[#stack].skip then
             append_text(stack[#stack], xml:sub(pos, lt - 1), true)
         end
 
         if xml:sub(lt, lt + 8) == "<![CDATA[" then
             local close = xml:find("]]>", lt + 9, true)
             if not close then return nil, "Unclosed CDATA section" end
-            append_text(stack[#stack], xml:sub(lt + 9, close - 1), false)
+            if not stack[#stack].skip then
+                append_text(stack[#stack], xml:sub(lt + 9, close - 1), false)
+            end
             pos = close + 3
         elseif xml:sub(lt, lt + 3) == "<!--" then
             local close = xml:find("-->", lt + 4, true)
@@ -112,14 +135,30 @@ local function parse_xml(xml)
             else
                 name, rest = raw:match("^%s*([%w_:%.-]+)(.*)$")
                 if not name then return nil, "Invalid XML tag" end
+                name = name:lower()
+                local parent = stack[#stack]
+                local skip = parent.skip
+                if name == "item" or name == "entry" then
+                    episode_count = episode_count + 1
+                    if episode_count > MAX_EPISODES then skip = true end
+                elseif not skip and parent.name == "item"
+                        and not rss_episode_fields[name] then
+                    skip = true
+                elseif not skip and parent.name == "entry"
+                        and not atom_episode_fields[name] then
+                    skip = true
+                end
                 local node = {
-                    name = name:lower(),
+                    name = name,
                     attrs = parse_attributes(rest or ""),
                     children = {},
                     content = {},
+                    skip = skip,
                 }
-                table.insert(stack[#stack].children, node)
-                table.insert(stack[#stack].content, node)
+                if not skip then
+                    table.insert(parent.children, node)
+                    table.insert(parent.content, node)
+                end
                 if not self_closing then table.insert(stack, node) end
             end
             pos = close + 1

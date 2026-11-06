@@ -9,7 +9,7 @@ local Library = require("podcast_library")
 local KinAMP = require("kinamp_client")
 local AudioProbe = require("audio_probe")
 
-local MAX_FEED_BYTES = 2 * 1024 * 1024
+local MAX_FEED_BYTES = 8 * 1024 * 1024
 
 local function fetch_feed(url, redirects)
     redirects = redirects or 0
@@ -38,7 +38,7 @@ local function fetch_feed(url, redirects)
     local call_ok, ok, code, headers, status = pcall(requester.request, {
         url = url,
         sink = sink,
-        headers = { ["User-Agent"] = "KOReader-Podcasts/0.3.5" },
+        headers = { ["User-Agent"] = "KOReader-Podcasts/0.3.6" },
     })
     socketutil:reset_timeout()
     if not call_ok then return false, tostring(ok) end

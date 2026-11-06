@@ -4,6 +4,7 @@ local lfs = require("libs/libkoreader-lfs")
 
 local Library = {}
 Library.__index = Library
+local MAX_EPISODES = 500
 
 local function hash(value)
     local result = 7
@@ -181,7 +182,8 @@ function Library:updateFeed(feed_id, parsed)
     end
 
     local updated = {}
-    for _, source in ipairs(parsed.episodes or {}) do
+    for source_index, source in ipairs(parsed.episodes or {}) do
+        if source_index > MAX_EPISODES then break end
         local old = old_by_key[episode_key(source)]
         local episode = {
             id = (old and old.id) or hash(feed.id .. "|" .. episode_key(source)),

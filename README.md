@@ -5,7 +5,7 @@ com o KinAMP. O player precisa estar instalado e habilitado separadamente.
 
 ## Estado atual
 
-Versão 0.3.5:
+Versão 0.3.6:
 
 - biblioteca em grade, com até quatro podcasts por linha, capa do feed e nome
   em fonte de 14 pt; feeds sem imagem usam uma capa substituta e as capas mostram
@@ -20,6 +20,8 @@ Versão 0.3.5:
   SVG incluídos no plugin; a lista de feeds e a paginação permanecem acima dela;
 - mensagem de orientação quando a biblioteca ainda não tem feeds;
 - cadastro, atualização e remoção de feeds;
+- feeds de até 8 MiB, mantendo no máximo os 500 primeiros episódios na ordem
+  recebida do RSS/Atom (normalmente do mais recente para o mais antigo);
 - leitura de RSS 2.0 e Atom com itens que declarem um enclosure de áudio;
 - download para `koreader/podcasts/`, com gravação em arquivo temporário; os
   caminhos são gravados em forma absoluta, porque o KinAMP roda a partir de

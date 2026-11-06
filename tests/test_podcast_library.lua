@@ -98,4 +98,17 @@ local queue = library:getDownloadedQueue("feed", "old")
 assert(#queue == 2, "both downloaded episodes should be queued")
 assert(queue[1] == "/mnt/us/koreader/podcasts/old.mp3", "the queue must hold absolute paths")
 
+local oversized_update = { title = "Large feed", episodes = {} }
+for i = 1, 505 do
+    oversized_update.episodes[i] = {
+        guid = "bulk-" .. i,
+        title = "Episode " .. i,
+        enclosure_url = "https://example.com/" .. i .. ".mp3",
+    }
+end
+assert(library:updateFeed("feed", oversized_update))
+assert(#feed.episodes == 500, "the library should never retain more than 500 episodes")
+assert(feed.episodes[1].guid == "bulk-1" and feed.episodes[500].guid == "bulk-500",
+    "the library should retain entries in the feed's order")
+
 print("podcast_library: OK")

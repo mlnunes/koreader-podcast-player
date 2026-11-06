@@ -52,4 +52,19 @@ assert(parsed.episodes[1].length == 2048)
 local invalid, invalid_err = Parser.parse("<rss><channel></rss>")
 assert(not invalid and invalid_err)
 
+local many_items = { "<rss><channel><title>Recent episodes</title>" }
+for i = 1, 505 do
+    many_items[#many_items + 1] = string.format(
+        '<item><title>Episode %d</title><guid>ep-%d</guid>'
+            .. '<description><![CDATA[%s]]></description>'
+            .. '<enclosure url="https://audio.example/%d.mp3" type="audio/mpeg"/></item>',
+        i, i, string.rep("large unused description ", 40), i)
+end
+many_items[#many_items + 1] = "</channel></rss>"
+parsed, err = Parser.parse(table.concat(many_items), "https://example.com/feed.xml")
+assert(parsed, err)
+assert(#parsed.episodes == 500, "only the newest 500 feed entries should be parsed")
+assert(parsed.episodes[1].guid == "ep-1" and parsed.episodes[500].guid == "ep-500",
+    "the parser should preserve the feed's newest-first order")
+
 print("feed_parser: OK")
