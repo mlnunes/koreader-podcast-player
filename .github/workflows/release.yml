@@ -40,7 +40,7 @@ jobs:
           mkdir -p dist/podcast.koplugin
           while IFS= read -r -d '' file; do
             case "$file" in
-              .github/*|dist/*|.gitignore) continue ;;
+              .github/*|dist/*|screenshots/*|.gitignore) continue ;;
             esac
             target="dist/podcast.koplugin/$file"
             mkdir -p "$(dirname "$target")"
