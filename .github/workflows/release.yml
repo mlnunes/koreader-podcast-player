@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release tag matching the version in _meta.lua, e.g. v0.3.14"
+        description: "Release tag matching the version in _meta.lua, e.g. v0.3.17"
         required: true
         type: string
 

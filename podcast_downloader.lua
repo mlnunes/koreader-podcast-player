@@ -1,7 +1,20 @@
-local Downloader = {}
+local MAX_EPISODE_BYTES = 200 * 1024 * 1024
+local Downloader = {
+    MAX_EPISODE_BYTES = MAX_EPISODE_BYTES,
+}
 local _ = require("gettext")
 local AudioProbe = require("audio_probe")
+local SizeProbe = require("podcast_size_probe")
 local logger = require("logger")
+
+function Downloader.exceedsLimit(received_bytes, incoming_bytes)
+    return received_bytes + incoming_bytes > MAX_EPISODE_BYTES
+end
+
+function Downloader.isWithinSizeLimit(size_bytes)
+    local size = tonumber(size_bytes)
+    return size == nil or (size == size and size >= 0 and size <= MAX_EPISODE_BYTES)
+end
 
 local function shell_safe_url(url)
     return type(url) == "string" and url:match("^https?://") ~= nil
@@ -33,8 +46,13 @@ local function perform_request(url, temp_path, expected_size, dialog, redirects)
 
     local received = 0
     local write_failed
+    local too_large = false
     local sink = function(chunk)
         if chunk then
+            if Downloader.exceedsLimit(received, #chunk) then
+                too_large = true
+                return nil, "episode exceeds the 200 MiB download limit"
+            end
             local wrote, write_err = file:write(chunk)
             if not wrote then
                 write_failed = write_err or "write failed"
@@ -58,7 +76,7 @@ local function perform_request(url, temp_path, expected_size, dialog, redirects)
         url = url,
         sink = sink,
         headers = {
-            ["User-Agent"] = "KOReader-Podcasts/0.3.13",
+            ["User-Agent"] = "KOReader-Podcasts/0.3.16",
             ["Accept-Encoding"] = "identity",
         },
     })
@@ -66,6 +84,7 @@ local function perform_request(url, temp_path, expected_size, dialog, redirects)
     file:close()
     if not request_ok then return false, tostring(ok) end
     if write_failed then return false, write_failed end
+    if too_large then return false, _("Episode exceeds the 200 MiB download limit") end
 
     local numeric_code = tonumber(code)
     if numeric_code and numeric_code >= 300 and numeric_code < 400
@@ -154,8 +173,7 @@ function Downloader.download(episode, base_path, callback, before_download)
 
     local function download_when_online()
         UIManager:nextTick(function()
-            local function start_download()
-                local expected = tonumber(episode.length)
+            local function start_download(expected)
                 local dialog = ProgressbarDialog:new{
                     title = _("Downloading podcast episode"),
                     subtitle = episode.title or "",
@@ -207,7 +225,23 @@ function Downloader.download(episode, base_path, callback, before_download)
             end
 
             if not before_download then
-                start_download()
+                start_download(tonumber(episode.length))
+                return
+            end
+
+            local probe_ok, size_bytes, size_source = pcall(SizeProbe.getEpisodeSize, episode)
+            if not probe_ok then
+                size_source = tostring(size_bytes)
+                size_bytes = nil
+            end
+            if size_bytes then
+                logger.info("Podcasts: episode size", size_bytes, "bytes from", size_source)
+            else
+                logger.warn("Podcasts: episode size unavailable; using 230 MiB reservation:",
+                    tostring(size_source))
+            end
+            if not Downloader.isWithinSizeLimit(size_bytes) then
+                callback(false, _("Episode exceeds the 200 MiB download limit"))
                 return
             end
 
@@ -219,9 +253,9 @@ function Downloader.download(episode, base_path, callback, before_download)
                     callback(false, tostring(err or _("Could not prepare storage for download")))
                     return
                 end
-                start_download()
+                start_download(size_bytes)
             end
-            local call_ok, err = pcall(before_download, episode, on_space_ready)
+            local call_ok, err = pcall(before_download, episode, size_bytes, on_space_ready)
             if not call_ok then on_space_ready(false, tostring(err)) end
         end)
     end

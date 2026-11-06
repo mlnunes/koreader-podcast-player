@@ -41,7 +41,7 @@ local function fetch_feed(url, redirects)
     local call_ok, ok, code, headers, status = pcall(requester.request, {
         url = url,
         sink = sink,
-        headers = { ["User-Agent"] = "KOReader-Podcasts/0.3.13" },
+        headers = { ["User-Agent"] = "KOReader-Podcasts/0.3.16" },
     })
     socketutil:reset_timeout()
     if not call_ok then return false, tostring(ok) end
@@ -767,9 +767,9 @@ function Podcasts:downloadEpisode(feed_id, episode_id)
                 self:showMessage(message, 7)
             end
         end)
-    end, function(download_episode, on_space_ready)
+    end, function(download_episode, size_bytes, on_space_ready)
         self:runStorageOperation(_("Releasing space for the episode…"), function(done)
-            return PodcastStorage.releaseForEpisode(episode, done)
+            return PodcastStorage.releaseForEpisode(episode, size_bytes, done)
         end, function(released, result)
             if released then
                 on_space_ready(true)

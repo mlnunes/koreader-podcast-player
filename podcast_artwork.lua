@@ -34,7 +34,7 @@ local function fetch(url, redirects)
     local call_ok, ok, code, headers, status = pcall(requester.request, {
         url = url,
         sink = sink,
-        headers = { ["User-Agent"] = "KOReader-Podcasts/0.3.13" },
+        headers = { ["User-Agent"] = "KOReader-Podcasts/0.3.16" },
     })
     socketutil:reset_timeout()
 

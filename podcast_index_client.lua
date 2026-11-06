@@ -8,7 +8,7 @@ function Client.buildAuthHeaders(api_key, api_secret, timestamp)
     local date = tostring(timestamp or os.time())
     local sha = require("ffi/sha2")
     return {
-        ["User-Agent"] = "KOReader-Podcasts/0.3.13",
+        ["User-Agent"] = "KOReader-Podcasts/0.3.16",
         ["X-Auth-Key"] = api_key,
         ["X-Auth-Date"] = date,
         Authorization = sha.sha1(api_key .. api_secret .. date),

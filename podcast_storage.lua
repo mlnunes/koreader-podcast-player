@@ -2,6 +2,15 @@ local _ = require("gettext")
 
 local Storage = {}
 local SAFETY_MARGIN_MIB = 40
+local UNKNOWN_SIZE_RESERVATION_MIB = 230
+
+local function positive_size(value)
+    local size = tonumber(value)
+    if not size or size ~= size or size <= 0 or size == math.huge then
+        return nil
+    end
+    return math.ceil(size)
+end
 
 local function load_api()
     local ok, api = pcall(require, "free90mib_api")
@@ -23,11 +32,9 @@ local function start_api_operation(api, method, ...)
     return handle
 end
 
-function Storage.releaseForEpisode(episode, on_done)
-    local size = type(episode) == "table" and tonumber(episode.length) or nil
-    if not size or size ~= size or size <= 0 or size == math.huge then
-        return nil, _("The feed does not provide a valid episode size. Update the feed before downloading.")
-    end
+function Storage.releaseForEpisode(episode, discovered_size, on_done)
+    local size = positive_size(discovered_size)
+        or (type(episode) == "table" and positive_size(episode.length))
 
     local api, err = load_api()
     if not api then return nil, err end
@@ -35,7 +42,12 @@ function Storage.releaseForEpisode(episode, on_done)
         return nil, _("Free 90 MiB returned an invalid size unit.")
     end
 
-    local requested_bytes = math.ceil(size) + SAFETY_MARGIN_MIB * api.MIB
+    local requested_bytes
+    if size then
+        requested_bytes = size + SAFETY_MARGIN_MIB * api.MIB
+    else
+        requested_bytes = UNKNOWN_SIZE_RESERVATION_MIB * api.MIB
+    end
     return start_api_operation(api, "release_space", requested_bytes, nil, on_done)
 end
 

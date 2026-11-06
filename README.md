@@ -6,7 +6,7 @@ required for downloads.
 
 ## Current features
 
-Version 0.3.13:
+Version 0.3.16:
 
 - Grid library with up to four podcasts per row, feed artwork, and 14 pt titles.
   Feeds without artwork use a placeholder; covers show the number of unplayed
@@ -23,10 +23,13 @@ Version 0.3.13:
 - Add, refresh, and remove podcast feeds.
 - Feeds up to 20 MiB; the plugin keeps at most the first 500 episodes in the
   order supplied by RSS/Atom (usually newest first).
-- Integration with `free90MiB`: before downloading, it requests space equal to
-  the episode size reported by the RSS feed plus 40 MiB. After a download or
-  deletion, it normalizes free space. The feed must provide a valid enclosure
-  size for each episode.
+- Episode downloads are limited to 200 MiB. A larger declared/probed size is
+  rejected, and the streaming transfer enforces the limit if the server sends
+  more data than advertised.
+- Integration with `free90MiB`: before downloading, it uses the RSS enclosure
+  size plus 40 MiB when available. Otherwise it probes the server with `HEAD`
+  and a one-byte range request. If neither provides a size, it requests a fixed
+  230 MiB reservation. After a download or deletion, it normalizes free space.
 - Podcast search by name through Podcast Index. API credentials are entered in
   KOReader and stored locally in `podcasts/podcast_index.lua` without encryption;
   do not share that file.
@@ -99,11 +102,12 @@ or remove the feed.
 ![Episode list showing dates and download/play status](screenshots/lista%20de%20episodios.png)
 
 Tap an episode that is not downloaded and choose **Download episode**. Before
-the transfer, the plugin asks `free90MiB` to release the size reported in the
-RSS enclosure plus a 40 MiB safety margin. It requests free-space normalization
-after the transfer, even if the transfer fails. The feed must provide a valid
-enclosure size; without one, the download does not start, and the plugin still
-attempts to normalize free space after the aborted attempt.
+the transfer, the plugin uses the size reported in the RSS enclosure. If it is
+missing, it probes the server with `HEAD`, then with a one-byte range request.
+When a size is found, `free90MiB` releases that amount plus a 40 MiB safety
+margin. If neither source provides a size, it releases a fixed 230 MiB instead.
+After the transfer, even if it fails, the plugin requests free-space
+normalization. Episode audio is capped at 200 MiB; larger episodes are rejected.
 
 ![Action menu for an episode that has not been downloaded](screenshots/baixar%20episodio.png)
 
@@ -153,7 +157,7 @@ Then use **Check for updates** in the plugin manager. Plugin Manager compares th
 version in `_meta.lua`; App Store tracks changes to the linked repository.
 
 To publish an update, bump the version in `_meta.lua`, push the commit to `main`,
-and create/push a matching tag, for example `v0.3.14`. GitHub Actions packages
+and create/push a matching tag, for example `v0.3.17`. GitHub Actions packages
 the plugin as `podcast.koplugin.zip` and creates a release. The repository's
 initial release was `v0.3.10`.
 
@@ -197,13 +201,15 @@ luajit podcast.koplugin/tests/test_podcast_library.lua
 luajit podcast.koplugin/tests/test_podcast_artwork.lua
 luajit podcast.koplugin/tests/test_podcast_index_client.lua
 luajit podcast.koplugin/tests/test_podcast_storage.lua
+luajit podcast.koplugin/tests/test_podcast_size_probe.lua
+luajit podcast.koplugin/tests/test_podcast_downloader_limits.lua
 ```
 
 The tests cover RSS 2.0, Atom, invalid XML, audio-format detection, Podcast Index
-authentication and results, playback monitoring (resume, stuck file, cold
-queue, and end of episode), absolute-path migration, and the space request
-calculation for `free90MiB`. UI, storage operations, and live network behavior
-must be tested in KOReader on an emulator or jailbroken Kindle.
+authentication and results, HTTP size probing, playback monitoring (resume,
+stuck file, cold queue, and end of episode), absolute-path migration, and the
+space request calculation for `free90MiB`. UI, storage operations, and live
+network behavior must be tested in KOReader on an emulator or jailbroken Kindle.
 
 ## License
 

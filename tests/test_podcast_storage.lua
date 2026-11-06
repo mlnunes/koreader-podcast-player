@@ -24,7 +24,7 @@ end
 
 local Storage = require("podcast_storage")
 local release_result
-local handle, err = Storage.releaseForEpisode({ length = 75 * mib + 1 }, function(success, result)
+local handle, err = Storage.releaseForEpisode({ length = 75 * mib + 1 }, nil, function(success, result)
     release_result = { success = success, result = result }
 end)
 assert(handle, err)
@@ -34,9 +34,15 @@ assert(captured_release.on_progress == nil, "integration should not require a pr
 captured_release.on_done(true, { final_free_bytes = 180 * mib })
 assert(release_result and release_result.success, "release completion should pass through")
 
-local invalid_handle, invalid_err = Storage.releaseForEpisode({ length = 0 }, function() end)
-assert(not invalid_handle and invalid_err:find("valid episode size", 1, true),
-    "feeds without a usable enclosure size must not start a download")
+handle, err = Storage.releaseForEpisode({ length = 120 * mib }, 50 * mib, function() end)
+assert(handle, err)
+assert(captured_release.bytes == 50 * mib + 40 * mib,
+    "a probed server size should take precedence over the feed size")
+
+local unknown_handle, unknown_err = Storage.releaseForEpisode({}, nil, function() end)
+assert(unknown_handle, unknown_err)
+assert(captured_release.bytes == 230 * mib,
+    "unknown episode sizes should use the fixed 230 MiB reservation")
 
 local normalized
 handle, err = Storage.normalize(function(success, result)
