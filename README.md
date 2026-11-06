@@ -63,6 +63,25 @@ versão compatível do KinAMP. O plugin acessa a API Lua interna
 `kinamp_backend.play_from_index`; ela não é uma API pública estável, portanto
 atualizações do KinAMP podem exigir ajustes em `kinamp_client.lua`.
 
+## Atualizações pelo GitHub
+
+Para vincular esta instalação ao repositório, use o App Store do KOReader em
+**Plugins instalados → Match with URL**, ou o Plugin Manager em
+**Installed (not in repo) → Link to GitHub repo**. Informe:
+
+```text
+mlnunes/koreader-podcast-player
+```
+
+Depois, use **Check for updates** no plugin gerenciador para buscar versões
+novas. O App Store/Plugin Manager compara a versão local com `version` em
+`_meta.lua` no repositório.
+
+Para publicar uma atualização, altere a versão em `_meta.lua`, envie o commit
+para `main` e crie/envie uma tag correspondente, por exemplo `v0.3.11`. O GitHub
+Actions empacota os arquivos como `podcast.koplugin.zip` e cria a release. O
+repositório inclui uma primeira release `v0.3.10` como ponto de partida.
+
 O áudio baixado fica em:
 
 ```text

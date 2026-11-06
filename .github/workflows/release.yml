@@ -1,0 +1,61 @@
+name: Package plugin release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release tag matching the version in _meta.lua, e.g. v0.3.10"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Package plugin
+        id: package
+        env:
+          REQUESTED_VERSION: ${{ github.event.inputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(sed -n 's/.*version = "\([^"]*\)".*/\1/p' _meta.lua | head -n 1)"
+          release_tag="${REQUESTED_VERSION:-$GITHUB_REF_NAME}"
+          if [[ "$release_tag" != "v$version" ]]; then
+            echo "Release tag $release_tag does not match _meta.lua version $version" >&2
+            exit 1
+          fi
+
+          mkdir -p dist/podcast.koplugin
+          while IFS= read -r -d '' file; do
+            case "$file" in
+              .github/*|dist/*|.gitignore) continue ;;
+            esac
+            target="dist/podcast.koplugin/$file"
+            mkdir -p "$(dirname "$target")"
+            cp "$file" "$target"
+          done < <(git ls-files -z)
+          (cd dist && zip -qr podcast.koplugin.zip podcast.koplugin)
+          echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.package.outputs.release_tag }}
+        run: >-
+          gh release create "$RELEASE_TAG" dist/podcast.koplugin.zip
+          --repo "$GITHUB_REPOSITORY"
+          --target "$GITHUB_SHA"
+          --title "Podcasts $RELEASE_TAG"
+          --generate-notes
