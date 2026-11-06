@@ -1,6 +1,7 @@
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local UIManager = require("ui/uimanager")
 local Dispatcher = require("dispatcher")
+local LuaSettings = require("luasettings")
 local logger = require("logger")
 local _ = require("gettext")
 local gettext = _
@@ -8,6 +9,7 @@ local gettext = _
 local Library = require("podcast_library")
 local KinAMP = require("kinamp_client")
 local AudioProbe = require("audio_probe")
+local PodcastIndex = require("podcast_index_client")
 
 local MAX_FEED_BYTES = 8 * 1024 * 1024
 
@@ -38,7 +40,7 @@ local function fetch_feed(url, redirects)
     local call_ok, ok, code, headers, status = pcall(requester.request, {
         url = url,
         sink = sink,
-        headers = { ["User-Agent"] = "KOReader-Podcasts/0.3.6" },
+        headers = { ["User-Agent"] = "KOReader-Podcasts/0.3.8" },
     })
     socketutil:reset_timeout()
     if not call_ok then return false, tostring(ok) end
@@ -71,6 +73,10 @@ end
 
 function Podcasts:init()
     self.library = Library:new{}
+    self.podcast_index_settings = LuaSettings:open(
+        self.library.podcast_dir .. "/podcast_index.lua")
+    self.podcast_index_api_key = self.podcast_index_settings:readSetting("api_key") or ""
+    self.podcast_index_api_secret = self.podcast_index_settings:readSetting("api_secret") or ""
     self:onDispatcherRegisterActions()
     if self.ui.menu then
         self.ui.menu:registerToMainMenu(self)
@@ -381,32 +387,201 @@ function Podcasts:showEpisodeActions(feed_id, episode_id)
     UIManager:show(dialog)
 end
 
-function Podcasts:showAddFeedDialog()
+function Podcasts:showAddFeedDialog(initial_url)
     local InputDialog = require("ui/widget/inputdialog")
     local dialog
     dialog = InputDialog:new{
-        title = _("Add podcast feed URL"),
-        input = "https://",
-        buttons = {{
+        title = _("Adicionar feed de podcast"),
+        input = initial_url or "https://",
+        buttons = {
             {
-                text = _("Cancel"),
-                id = "close",
-                callback = function() UIManager:close(dialog) end,
+                {
+                    text = _("Cancelar"),
+                    id = "close",
+                    callback = function() UIManager:close(dialog) end,
+                },
+                {
+                    text = _("Adicionar"),
+                    is_enter_default = true,
+                    callback = function()
+                        local url = dialog:getInputText():match("^%s*(.-)%s*$")
+                        if url == "" then return end
+                        UIManager:close(dialog)
+                        self:addFeed(url)
+                    end,
+                },
             },
             {
-                text = _("Add"),
+                {
+                    text = _("Buscar por nome"),
+                    callback = function()
+                        UIManager:close(dialog)
+                        self:showPodcastIndexSearchDialog()
+                    end,
+                },
+            },
+        },
+    }
+    UIManager:show(dialog)
+    dialog:onShowKeyboard()
+end
+
+function Podcasts:showPodcastIndexCredentials(on_saved)
+    local InputDialog = require("ui/widget/inputdialog")
+    local key_dialog
+    key_dialog = InputDialog:new{
+        title = _("Chave de API do Podcast Index"),
+        input = self.podcast_index_api_key or "",
+        buttons = {{
+            {
+                text = _("Cancelar"),
+                id = "close",
+                callback = function() UIManager:close(key_dialog) end,
+            },
+            {
+                text = _("Continuar"),
                 is_enter_default = true,
                 callback = function()
-                    local url = dialog:getInputText():match("^%s*(.-)%s*$")
-                    if url == "" then return end
-                    UIManager:close(dialog)
-                    self:addFeed(url)
+                    local api_key = key_dialog:getInputText():match("^%s*(.-)%s*$")
+                    if api_key == "" then return end
+                    UIManager:close(key_dialog)
+
+                    local secret_dialog
+                    secret_dialog = InputDialog:new{
+                        title = _("Segredo da API do Podcast Index"),
+                        input = "",
+                        text_type = "password",
+                        buttons = {{
+                            {
+                                text = _("Cancelar"),
+                                id = "close",
+                                callback = function() UIManager:close(secret_dialog) end,
+                            },
+                            {
+                                text = _("Salvar"),
+                                is_enter_default = true,
+                                callback = function()
+                                    local api_secret = secret_dialog:getInputText()
+                                        :match("^%s*(.-)%s*$")
+                                    if api_secret == "" then return end
+                                    UIManager:close(secret_dialog)
+                                    self.podcast_index_api_key = api_key
+                                    self.podcast_index_api_secret = api_secret
+                                    self.podcast_index_settings:saveSetting("api_key", api_key)
+                                    self.podcast_index_settings:saveSetting("api_secret", api_secret)
+                                    self.podcast_index_settings:flush()
+                                    self:showMessage(_("Credenciais do Podcast Index salvas"))
+                                    if on_saved then on_saved() end
+                                end,
+                            },
+                        }},
+                    }
+                    UIManager:show(secret_dialog)
+                    secret_dialog:onShowKeyboard()
                 end,
             },
         }},
     }
+    UIManager:show(key_dialog)
+    key_dialog:onShowKeyboard()
+end
+
+function Podcasts:showPodcastIndexSearchDialog(initial_query)
+    local InputDialog = require("ui/widget/inputdialog")
+    local dialog
+    dialog = InputDialog:new{
+        title = _("Buscar podcasts pelo nome"),
+        input = initial_query or "",
+        buttons = {
+            {
+                {
+                    text = _("Cancelar"),
+                    id = "close",
+                    callback = function() UIManager:close(dialog) end,
+                },
+                {
+                    text = _("Buscar"),
+                    is_enter_default = true,
+                    callback = function()
+                        local query = dialog:getInputText():match("^%s*(.-)%s*$")
+                        if query == "" then return end
+                        UIManager:close(dialog)
+                        if self.podcast_index_api_key == ""
+                                or self.podcast_index_api_secret == "" then
+                            self:showPodcastIndexCredentials(function()
+                                self:runPodcastIndexSearch(query)
+                            end)
+                        else
+                            self:runPodcastIndexSearch(query)
+                        end
+                    end,
+                },
+            },
+            {
+                {
+                    text = _("Configurar credenciais do Podcast Index"),
+                    callback = function()
+                        local query = dialog:getInputText():match("^%s*(.-)%s*$")
+                        UIManager:close(dialog)
+                        self:showPodcastIndexCredentials(function()
+                            self:showPodcastIndexSearchDialog(query)
+                        end)
+                    end,
+                },
+            },
+        },
+    }
     UIManager:show(dialog)
     dialog:onShowKeyboard()
+end
+
+function Podcasts:runPodcastIndexSearch(query)
+    local NetworkMgr = require("ui/network/manager")
+    local InfoMessage = require("ui/widget/infomessage")
+    local busy = InfoMessage:new{ text = _("Buscando no Podcast Index…") }
+    UIManager:show(busy)
+
+    local function search_when_online()
+        local feeds, err = PodcastIndex.search(query,
+            self.podcast_index_api_key, self.podcast_index_api_secret)
+        UIManager:nextTick(function()
+            if UIManager:isWidgetShown(busy) then UIManager:close(busy) end
+            if not feeds then
+                self:showMessage(_("Falha na busca de podcasts") .. ": " .. tostring(err), 5)
+            elseif #feeds == 0 then
+                self:showMessage(_("Nenhum podcast encontrado"))
+            else
+                self:showPodcastIndexResults(feeds)
+            end
+        end)
+    end
+    if NetworkMgr:isConnected() then
+        UIManager:nextTick(search_when_online)
+    else
+        NetworkMgr:runWhenOnline(function()
+            UIManager:nextTick(search_when_online)
+        end)
+    end
+end
+
+function Podcasts:showPodcastIndexResults(feeds)
+    local Menu = require("ui/widget/menu")
+    local items = {}
+    for _, feed in ipairs(feeds) do
+        local feed_url = feed.url
+        table.insert(items, {
+            -- Keep title and author in one text column. A separate mandatory
+            -- column may consume the whole row on small screens for long names.
+            text = PodcastIndex.resultText(feed),
+            callback = function()
+                self:showAddFeedDialog(feed_url)
+            end,
+        })
+    end
+    UIManager:show(Menu:new{
+        title = _("Resultados da busca"),
+        item_table = items,
+    })
 end
 
 function Podcasts:addFeed(url)

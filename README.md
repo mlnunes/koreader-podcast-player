@@ -5,7 +5,7 @@ com o KinAMP. O player precisa estar instalado e habilitado separadamente.
 
 ## Estado atual
 
-Versão 0.3.6:
+Versão 0.3.8:
 
 - biblioteca em grade, com até quatro podcasts por linha, capa do feed e nome
   em fonte de 14 pt; feeds sem imagem usam uma capa substituta e as capas mostram
@@ -22,6 +22,11 @@ Versão 0.3.6:
 - cadastro, atualização e remoção de feeds;
 - feeds de até 8 MiB, mantendo no máximo os 500 primeiros episódios na ordem
   recebida do RSS/Atom (normalmente do mais recente para o mais antigo);
+- busca de podcasts pelo nome no Podcast Index; as credenciais da API são
+  configuradas no KOReader e ficam no arquivo local `podcasts/podcast_index.lua`
+  (sem criptografia; não compartilhe esse arquivo);
+- resultados da busca mostram título e autor sem coluna lateral para acomodar
+  telas menores;
 - leitura de RSS 2.0 e Atom com itens que declarem um enclosure de áudio;
 - download para `koreader/podcasts/`, com gravação em arquivo temporário; os
   caminhos são gravados em forma absoluta, porque o KinAMP roda a partir de
@@ -43,7 +48,7 @@ Versão 0.3.6:
 
 O download é feito para arquivo, não mantido inteiro na memória. O diálogo mostra
 progresso quando o feed informa o tamanho do enclosure. A chamada HTTP usada
-nesta versão é síncrona; durante um download longo, a interação com a interface
+ nesta versão é síncrona; durante um download longo, a interação com a interface
 pode ficar limitada. O cancelamento de download ainda não existe.
 
 O KinAMP mantém **uma única fila**. Ao tocar um episódio, a fila de músicas que
@@ -95,12 +100,14 @@ luajit podcast.koplugin/tests/test_audio_probe.lua
 luajit podcast.koplugin/tests/test_kinamp_client.lua
 luajit podcast.koplugin/tests/test_podcast_library.lua
 luajit podcast.koplugin/tests/test_podcast_artwork.lua
+luajit podcast.koplugin/tests/test_podcast_index_client.lua
 ```
 
-Os testes cobrem RSS 2.0, Atom, XML inválido, a identificação dos formatos de
-áudio, o vigia de reprodução (retomada, arquivo travado, fila fria e fim do
-episódio) e a gravação/migração dos caminhos absolutos da biblioteca. Os módulos de UI, rede e áudio dependem do ambiente KOReader e devem
-ser testados no emulador ou em um Kindle com jailbreak.
+Os testes cobrem RSS 2.0, Atom, XML inválido, identificação dos formatos de áudio,
+autenticação e resultados da busca Podcast Index, o vigia de reprodução
+(retomada, arquivo travado, fila fria e fim do episódio) e a gravação/migração dos
+caminhos absolutos da biblioteca. A interface e a rede real dependem do ambiente
+KOReader e devem ser testadas no emulador ou em um Kindle com jailbreak.
 
 ## Licença
 
