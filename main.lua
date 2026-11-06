@@ -38,7 +38,7 @@ local function fetch_feed(url, redirects)
     local call_ok, ok, code, headers, status = pcall(requester.request, {
         url = url,
         sink = sink,
-        headers = { ["User-Agent"] = "KOReader-Podcasts/0.3.4" },
+        headers = { ["User-Agent"] = "KOReader-Podcasts/0.3.5" },
     })
     socketutil:reset_timeout()
     if not call_ok then return false, tostring(ok) end
@@ -134,9 +134,11 @@ function Podcasts:openLibrary()
         local feed_id = feed.id
         local count = #(feed.episodes or {})
         table.insert(items, {
+            feed_id = feed_id,
             text = feed.title ~= "" and feed.title or feed.url,
             mandatory = tostring(count),
             artwork_path = self.library:hasArtwork(feed) and feed.artwork_path or nil,
+            unplayed_count = self.library:getUnplayedCount(feed_id),
             callback = self:guardCallback("open feed", function()
                 self:openFeed(feed_id)
             end),
@@ -183,6 +185,24 @@ function Podcasts:closeLibraryTaskbar()
     self.library_taskbar = nil
 end
 
+function Podcasts:refreshLibraryFeedItem(feed_id)
+    local menu = self.library_menu
+    local feed = self.library:getFeed(feed_id)
+    if not menu or not feed or not UIManager:isWidgetShown(menu) then return end
+
+    for index = 1, #menu.item_table do
+        local item = menu.item_table[index]
+        if item.feed_id == feed_id then
+            item.text = feed.title ~= "" and feed.title or feed.url
+            item.mandatory = tostring(#(feed.episodes or {}))
+            item.artwork_path = self.library:hasArtwork(feed) and feed.artwork_path or nil
+            item.unplayed_count = self.library:getUnplayedCount(feed_id)
+            menu:updateItems(nil, true)
+            return
+        end
+    end
+end
+
 function Podcasts:openFeed(feed_id)
     local Menu = require("ui/widget/menu")
     local feed = self.library:getFeed(feed_id)
@@ -212,6 +232,7 @@ function Podcasts:openFeed(feed_id)
                     self:showMessage(_("Podcast feed not found"))
                     return
                 end
+                self:refreshLibraryFeedItem(feed_id)
                 self:refreshVisibleFeed(feed_id)
                 self:showMessage(_("All episodes marked as played"))
             end),
@@ -345,6 +366,7 @@ function Podcasts:showEpisodeActions(feed_id, episode_id)
             text = episode.played and _("Mark as unplayed") or _("Mark as played"),
             callback = close_then(function()
                 self.library:setPlayed(feed_id, episode_id, not episode.played)
+                self:refreshLibraryFeedItem(feed_id)
                 self:refreshVisibleFeed(feed_id)
                 self:showMessage(_("Episode status updated"))
             end),
@@ -457,6 +479,7 @@ function Podcasts:fetchFeed(feed, is_new, on_done)
             else
                 self.library:updateFeed(feed.id, parsed)
                 self:cacheFeedArtwork(feed.id, parsed.artwork_url)
+                self:refreshLibraryFeedItem(feed.id)
                 UIManager:close(busy)
                 if not on_done then
                     if is_new then

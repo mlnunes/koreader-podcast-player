@@ -5,10 +5,11 @@ com o KinAMP. O player precisa estar instalado e habilitado separadamente.
 
 ## Estado atual
 
-Versão 0.3.4:
+Versão 0.3.5:
 
 - biblioteca em grade, com até quatro podcasts por linha, capa do feed e nome
-  em fonte de 14 pt; feeds sem imagem usam uma capa substituta;
+  em fonte de 14 pt; feeds sem imagem usam uma capa substituta e as capas mostram
+  a quantidade de episódios não tocados quando maior que zero;
 - ação na lista de episódios para marcar todos como tocados de uma só vez;
 - imagens RSS/Atom são guardadas localmente em `podcasts/artwork/`; para feeds
   já inscritos, use **Atualizar** uma vez para buscar as capas. São aceitas

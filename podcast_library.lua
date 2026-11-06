@@ -97,6 +97,16 @@ function Library:getFeed(feed_id)
     end
 end
 
+function Library:getUnplayedCount(feed_id)
+    local feed = self:getFeed(feed_id)
+    if not feed then return 0 end
+    local count = 0
+    for _, episode in ipairs(feed.episodes or {}) do
+        if not episode.played then count = count + 1 end
+    end
+    return count
+end
+
 function Library:getEpisode(feed_id, episode_id)
     local feed = self:getFeed(feed_id)
     if not feed then return nil, nil end

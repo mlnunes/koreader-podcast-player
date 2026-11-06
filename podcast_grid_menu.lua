@@ -12,6 +12,7 @@ local Menu = require("ui/widget/menu")
 local Screen = require("device").screen
 local Size = require("ui/size")
 local TextBoxWidget = require("ui/widget/textboxwidget")
+local TextWidget = require("ui/widget/textwidget")
 local Font = require("ui/font")
 local UIManager = require("ui/uimanager")
 local VerticalSpan = require("ui/widget/verticalspan")
@@ -88,6 +89,21 @@ function GridMenuItem:init()
     }
     self.cover_frame = cover_frame
     self.title_widget = title
+    local unplayed_count = tonumber(self.entry.unplayed_count) or 0
+    if unplayed_count > 0 then
+        self.unplayed_badge = FrameContainer:new{
+            bordersize = Size.border.thin,
+            padding = Screen:scaleBySize(4),
+            background = Blitbuffer.COLOR_BLACK,
+            color = Blitbuffer.COLOR_WHITE,
+            TextWidget:new{
+                text = tostring(unplayed_count),
+                face = Font:getFace("smallinfofont", 14),
+                fgcolor = Blitbuffer.COLOR_WHITE,
+                bold = true,
+            },
+        }
+    end
 end
 
 function GridMenuItem:getSize()
@@ -100,6 +116,13 @@ function GridMenuItem:paintTo(bb, x, y)
     local cover_size = self.cover_frame:getSize()
     local cover_x = x + math.floor((self.dimen.w - cover_size.w) / 2)
     self.cover_frame:paintTo(bb, cover_x, y)
+    if self.unplayed_badge then
+        local badge_size = self.unplayed_badge:getSize()
+        local inset = Size.padding.tiny
+        self.unplayed_badge:paintTo(bb,
+            cover_x + cover_size.w - Size.border.thin - inset - badge_size.w,
+            y + Size.border.thin + inset)
+    end
     self.title_widget:paintTo(bb, x, y + cover_size.h + TITLE_SPACING)
 end
 
@@ -111,6 +134,10 @@ function GridMenuItem:free(full)
     if self.title_widget then
         self.title_widget:free(full)
         self.title_widget = nil
+    end
+    if self.unplayed_badge then
+        self.unplayed_badge:free(full)
+        self.unplayed_badge = nil
     end
 end
 

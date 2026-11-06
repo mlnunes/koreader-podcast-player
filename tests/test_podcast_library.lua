@@ -69,6 +69,8 @@ assert(absolute.download_path == "/mnt/us/koreader/podcasts/abs.m4a",
 assert(flushed, "migrated paths should be saved to library.lua")
 
 local feed = library:getFeed("feed")
+assert(library:getUnplayedCount("feed") == 2,
+    "episodes without a played flag should count as unplayed")
 assert(library:getArtworkBasePath(feed) == "/mnt/us/koreader/podcasts/artwork/feed",
     "feed artwork should be stored in its own local directory")
 assert(library:setFeedArtwork("feed", "https://example.com/art.jpg",
@@ -82,11 +84,13 @@ abs_episode.position = 5
 local marked_ok, marked_count = library:setFeedEpisodesPlayed("feed", true)
 assert(marked_ok and marked_count == 2, "all episodes should be marked in one operation")
 assert(old_episode.played and abs_episode.played, "bulk mark should update every episode")
+assert(library:getUnplayedCount("feed") == 0, "marking all played should clear the count")
 assert(old_episode.position == 12 and abs_episode.position == 5,
     "marking as played should preserve saved positions")
 
 library:setFeedEpisodesPlayed("feed", false)
 assert(not old_episode.played and not abs_episode.played, "bulk unmark should clear played flags")
+assert(library:getUnplayedCount("feed") == 2, "unmarking should restore the count")
 assert(old_episode.position == 0 and abs_episode.position == 0,
     "bulk unmark should reset playback positions")
 
