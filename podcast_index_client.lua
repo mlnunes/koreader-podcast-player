@@ -8,7 +8,7 @@ function Client.buildAuthHeaders(api_key, api_secret, timestamp)
     local date = tostring(timestamp or os.time())
     local sha = require("ffi/sha2")
     return {
-        ["User-Agent"] = "KOReader-Podcasts/0.3.12",
+        ["User-Agent"] = "KOReader-Podcasts/0.3.13",
         ["X-Auth-Key"] = api_key,
         ["X-Auth-Date"] = date,
         Authorization = sha.sha1(api_key .. api_secret .. date),
@@ -30,13 +30,13 @@ end
 
 function Client.search(query, api_key, api_secret)
     query = type(query) == "string" and query:match("^%s*(.-)%s*$") or ""
-    if query == "" then return nil, "Informe um termo para a busca" end
+    if query == "" then return nil, "Enter a search term" end
     if type(api_key) ~= "string" or api_key == ""
             or type(api_secret) ~= "string" or api_secret == "" then
-        return nil, "Configure a chave e o segredo do Podcast Index"
+        return nil, "Configure the Podcast Index API key and secret"
     end
     if api_key:find("[\r\n]") or api_secret:find("[\r\n]") then
-        return nil, "As credenciais do Podcast Index contêm quebras de linha inválidas"
+        return nil, "Podcast Index credentials contain invalid line breaks"
     end
 
     local url = require("socket.url")
@@ -50,7 +50,7 @@ function Client.search(query, api_key, api_secret)
         received = received + #chunk
         if received > MAX_RESPONSE_BYTES then
             too_large = true
-            return nil, "A resposta do Podcast Index excede o limite permitido"
+            return nil, "Podcast Index response exceeds the allowed size"
         end
         chunks[#chunks + 1] = chunk
         return 1
@@ -64,23 +64,23 @@ function Client.search(query, api_key, api_secret)
     })
     socketutil:reset_timeout()
     if not call_ok then return nil, tostring(ok) end
-    if too_large then return nil, "A resposta do Podcast Index excede o limite permitido" end
+    if too_large then return nil, "Podcast Index response exceeds the allowed size" end
     if not ok or tonumber(code) ~= 200 then
         if tonumber(code) == 401 then
-            return nil, "O Podcast Index recusou as credenciais ou a data/hora do Kindle (HTTP 401)"
+            return nil, "Podcast Index rejected the credentials or Kindle clock (HTTP 401)"
         end
         return nil, status or ("HTTP " .. tostring(code or "request failed"))
     end
 
     local decode_ok, response = pcall(require("rapidjson").decode, table.concat(chunks))
     if not decode_ok or type(response) ~= "table" then
-        return nil, "Não foi possível interpretar a resposta do Podcast Index"
+        return nil, "Could not decode the Podcast Index response"
     end
     if response.status == false or response.status == "false" then
-        return nil, response.description or response.message or "A busca no Podcast Index falhou"
+        return nil, response.description or response.message or "Podcast Index search failed"
     end
     if type(response.feeds) ~= "table" then
-        return nil, "A resposta do Podcast Index não contém uma lista de feeds"
+        return nil, "Podcast Index response does not contain a feed list"
     end
 
     local feeds = {}

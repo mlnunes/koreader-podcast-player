@@ -6,7 +6,7 @@ required for downloads.
 
 ## Current features
 
-Version 0.3.12:
+Version 0.3.13:
 
 - Grid library with up to four podcasts per row, feed artwork, and 14 pt titles.
   Feeds without artwork use a placeholder; covers show the number of unplayed
@@ -153,7 +153,7 @@ Then use **Check for updates** in the plugin manager. Plugin Manager compares th
 version in `_meta.lua`; App Store tracks changes to the linked repository.
 
 To publish an update, bump the version in `_meta.lua`, push the commit to `main`,
-and create/push a matching tag, for example `v0.3.13`. GitHub Actions packages
+and create/push a matching tag, for example `v0.3.14`. GitHub Actions packages
 the plugin as `podcast.koplugin.zip` and creates a release. The repository's
 initial release was `v0.3.10`.
 

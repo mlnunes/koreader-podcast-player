@@ -79,6 +79,6 @@ assert(captured_request.headers["X-Auth-Key"] == "api-key")
 assert(captured_request.headers.Authorization == "test-digest")
 
 local empty, empty_err = Client.search("  ", "api-key", "api-secret")
-assert(not empty and empty_err == "Informe um termo para a busca")
+assert(not empty and empty_err == "Enter a search term")
 
 print("podcast_index_client: OK")

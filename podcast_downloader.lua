@@ -58,7 +58,7 @@ local function perform_request(url, temp_path, expected_size, dialog, redirects)
         url = url,
         sink = sink,
         headers = {
-            ["User-Agent"] = "KOReader-Podcasts/0.3.12",
+            ["User-Agent"] = "KOReader-Podcasts/0.3.13",
             ["Accept-Encoding"] = "identity",
         },
     })

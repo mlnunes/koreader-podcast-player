@@ -197,7 +197,7 @@ function PodcastGridMenu:updateItems(select_number, no_recalculate_dimen)
 
     if #self.item_table == 0 then
         local empty_message = TextBoxWidget:new{
-            text = _("Nenhum podcast inscrito. Use Adicionar para começar."),
+            text = _("No podcasts subscribed yet. Use Add to get started."),
             face = Font:getFace("smallinfofont", 18),
             width = self.inner_dimen.w - 2 * self.item_margin,
             height = self.available_height,
@@ -256,7 +256,7 @@ function PodcastGridMenu:updateItems(select_number, no_recalculate_dimen)
 
     self:updatePageInfo(select_number)
     if #self.item_table == 0 then
-        self.page_info_text:setText(_("Nenhum podcast inscrito"))
+        self.page_info_text:setText(_("No podcasts subscribed"))
     end
     self:mergeTitleBarIntoLayout()
 

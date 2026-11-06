@@ -33,10 +33,10 @@ local Taskbar = InputContainer:extend{
 }
 
 local action_definitions = {
-    { label = _("Adicionar"), icon = "add_feed.svg" },
-    { label = _("Atualizar"), icon = "refresh_feeds.svg" },
-    { label = _("Reprodução"), icon = "playback.svg" },
-    { label = _("Diagnóstico"), icon = "diagnostics.svg" },
+    { label = _("Add"), icon = "add_feed.svg" },
+    { label = _("Refresh"), icon = "refresh_feeds.svg" },
+    { label = _("Playback"), icon = "playback.svg" },
+    { label = _("Diagnostics"), icon = "diagnostics.svg" },
 }
 
 function Taskbar:init()
