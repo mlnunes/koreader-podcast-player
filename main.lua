@@ -10,6 +10,7 @@ local Library = require("podcast_library")
 local KinAMP = require("kinamp_client")
 local AudioProbe = require("audio_probe")
 local PodcastIndex = require("podcast_index_client")
+local PodcastStorage = require("podcast_storage")
 
 local MAX_FEED_BYTES = 20 * 1024 * 1024
 
@@ -40,7 +41,7 @@ local function fetch_feed(url, redirects)
     local call_ok, ok, code, headers, status = pcall(requester.request, {
         url = url,
         sink = sink,
-        headers = { ["User-Agent"] = "KOReader-Podcasts/0.3.10" },
+        headers = { ["User-Agent"] = "KOReader-Podcasts/0.3.12" },
     })
     socketutil:reset_timeout()
     if not call_ok then return false, tostring(ok) end
@@ -105,6 +106,33 @@ function Podcasts:showMessage(text, timeout)
         text = text,
         timeout = timeout or 3,
     })
+end
+
+function Podcasts:runStorageOperation(message, start_operation, on_done)
+    local busy = require("ui/widget/infomessage"):new{ text = message }
+    UIManager:show(busy)
+    local completed = false
+    local function finish(success, result)
+        if completed then return end
+        completed = true
+        if UIManager:isWidgetShown(busy) then UIManager:close(busy) end
+        if on_done then on_done(success, result or {}) end
+    end
+
+    local call_ok, handle, err = pcall(start_operation, finish)
+    if not call_ok then
+        logger.warn("Podcasts: storage operation failed to start:", tostring(handle))
+        finish(false, { message = tostring(handle) })
+    elseif not handle then
+        finish(false, { message = tostring(err or _("Operation could not be started")) })
+    end
+    return handle
+end
+
+function Podcasts:normalizeFreeSpace(on_done)
+    return self:runStorageOperation(_("Normalizing free space…"), function(done)
+        return PodcastStorage.normalize(done)
+    end, on_done)
 end
 
 function Podcasts:guardCallback(label, callback)
@@ -360,9 +388,20 @@ function Podcasts:showEpisodeActions(feed_id, episode_id)
             {
                 text = _("Delete downloaded file"),
                 callback = close_then(function()
-                self.library:deleteDownload(feed_id, episode_id)
-                self:refreshVisibleFeed(feed_id)
-                self:showMessage(_("Downloaded episode deleted"))
+                    local deleted = self.library:deleteDownload(feed_id, episode_id)
+                    if not deleted then
+                        self:showMessage(_("Could not delete the downloaded episode"), 5)
+                        return
+                    end
+                    self:normalizeFreeSpace(function(normalized, result)
+                        self:refreshVisibleFeed(feed_id)
+                        if normalized then
+                            self:showMessage(_("Downloaded episode deleted; free space normalized"))
+                        else
+                            self:showMessage(_("Episode deleted, but free-space normalization failed")
+                                .. ": " .. tostring(result.message or "unknown error"), 7)
+                        end
+                    end)
                 end),
             },
         })
@@ -705,12 +744,40 @@ function Podcasts:downloadEpisode(feed_id, episode_id)
             if previous_path and previous_path ~= path_or_err then
                 os.remove(previous_path)
             end
-            self:refreshVisibleFeed(feed_id)
-            self:showMessage(_("Episode downloaded") .. ": " .. (episode.title or ""), 4)
         else
             logger.warn("Podcasts: download failed:", tostring(path_or_err))
-            self:showMessage(_("Download failed") .. ": " .. tostring(path_or_err), 6)
         end
+
+        -- Normalize after both successful and failed downloads. The failed
+        -- path may have already released some filler files before stopping.
+        self:normalizeFreeSpace(function(normalized, result)
+            self:refreshVisibleFeed(feed_id)
+            if ok and normalized then
+                self:showMessage(_("Episode downloaded; free space normalized")
+                    .. ": " .. (episode.title or ""), 4)
+            elseif ok then
+                self:showMessage(_("Episode downloaded, but free-space normalization failed")
+                    .. ": " .. tostring(result.message or "unknown error"), 7)
+            else
+                local message = _("Download failed") .. ": " .. tostring(path_or_err)
+                if not normalized then
+                    message = message .. "\n" .. _("Free-space normalization also failed")
+                        .. ": " .. tostring(result.message or "unknown error")
+                end
+                self:showMessage(message, 7)
+            end
+        end)
+    end, function(download_episode, on_space_ready)
+        self:runStorageOperation(_("Releasing space for the episode…"), function(done)
+            return PodcastStorage.releaseForEpisode(episode, done)
+        end, function(released, result)
+            if released then
+                on_space_ready(true)
+            else
+                on_space_ready(false, _("Could not prepare storage for this episode")
+                    .. ": " .. tostring(result.message or "unknown error"))
+            end
+        end)
     end)
 end
 

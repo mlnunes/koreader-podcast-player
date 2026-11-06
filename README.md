@@ -1,11 +1,12 @@
 # Podcasts for KOReader
 
 Plugin KOReader para cadastrar feeds RSS/Atom, baixar episódios e reproduzi-los
-com o KinAMP. O player precisa estar instalado e habilitado separadamente.
+com o KinAMP. Para baixar episódios, os plugins KinAMP e free90MiB precisam
+estar instalados e habilitados.
 
 ## Estado atual
 
-Versão 0.3.10:
+Versão 0.3.12:
 
 - biblioteca em grade, com até quatro podcasts por linha, capa do feed e nome
   em fonte de 14 pt; feeds sem imagem usam uma capa substituta e as capas mostram
@@ -22,6 +23,9 @@ Versão 0.3.10:
 - cadastro, atualização e remoção de feeds;
 - feeds de até 20 MiB, mantendo no máximo os 500 primeiros episódios na ordem
   recebida do RSS/Atom (normalmente do mais recente para o mais antigo);
+- integração com o plugin `free90MiB`: antes do download, solicita a liberação
+  do tamanho informado no RSS mais 40 MiB; após download ou exclusão, normaliza
+  o espaço livre. O feed precisa informar um tamanho válido para cada episódio;
 - busca de podcasts pelo nome no Podcast Index; as credenciais da API são
   configuradas no KOReader e ficam no arquivo local `podcasts/podcast_index.lua`
   (sem criptografia; não compartilhe esse arquivo);
@@ -78,7 +82,7 @@ novas. O App Store/Plugin Manager compara a versão local com `version` em
 `_meta.lua` no repositório.
 
 Para publicar uma atualização, altere a versão em `_meta.lua`, envie o commit
-para `main` e crie/envie uma tag correspondente, por exemplo `v0.3.11`. O GitHub
+para `main` e crie/envie uma tag correspondente, por exemplo `v0.3.13`. O GitHub
 Actions empacota os arquivos como `podcast.koplugin.zip` e cria a release. O
 repositório inclui uma primeira release `v0.3.10` como ponto de partida.
 
@@ -120,13 +124,15 @@ luajit podcast.koplugin/tests/test_kinamp_client.lua
 luajit podcast.koplugin/tests/test_podcast_library.lua
 luajit podcast.koplugin/tests/test_podcast_artwork.lua
 luajit podcast.koplugin/tests/test_podcast_index_client.lua
+luajit podcast.koplugin/tests/test_podcast_storage.lua
 ```
 
 Os testes cobrem RSS 2.0, Atom, XML inválido, identificação dos formatos de áudio,
 autenticação e resultados da busca Podcast Index, o vigia de reprodução
 (retomada, arquivo travado, fila fria e fim do episódio) e a gravação/migração dos
-caminhos absolutos da biblioteca. A interface e a rede real dependem do ambiente
-KOReader e devem ser testadas no emulador ou em um Kindle com jailbreak.
+caminhos absolutos da biblioteca, além do cálculo do espaço solicitado ao
+free90MiB. A interface, as operações de armazenamento e a rede real dependem do
+ambiente KOReader e devem ser testadas no emulador ou em um Kindle com jailbreak.
 
 ## Licença
 

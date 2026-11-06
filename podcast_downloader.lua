@@ -58,7 +58,7 @@ local function perform_request(url, temp_path, expected_size, dialog, redirects)
         url = url,
         sink = sink,
         headers = {
-            ["User-Agent"] = "KOReader-Podcasts/0.2",
+            ["User-Agent"] = "KOReader-Podcasts/0.3.12",
             ["Accept-Encoding"] = "identity",
         },
     })
@@ -135,7 +135,7 @@ end
 -- `base_path` is the destination without extension: the extension is chosen
 -- from the file's actual contents, because KinAMP-minimal selects its decoder
 -- by extension and a misleading one makes it silent.
-function Downloader.download(episode, base_path, callback)
+function Downloader.download(episode, base_path, callback, before_download)
     local NetworkMgr = require("ui/network/manager")
     local UIManager = require("ui/uimanager")
     local ProgressbarDialog = require("ui/widget/progressbardialog")
@@ -154,55 +154,75 @@ function Downloader.download(episode, base_path, callback)
 
     local function download_when_online()
         UIManager:nextTick(function()
-            local expected = tonumber(episode.length)
-            local dialog = ProgressbarDialog:new{
-                title = _("Downloading podcast episode"),
-                subtitle = episode.title or "",
-                progress_max = expected and expected > 0 and expected or nil,
-                dismissable = false,
-                refresh_time_seconds = 1,
-            }
-            dialog:show()
+            local function start_download()
+                local expected = tonumber(episode.length)
+                local dialog = ProgressbarDialog:new{
+                    title = _("Downloading podcast episode"),
+                    subtitle = episode.title or "",
+                    progress_max = expected and expected > 0 and expected or nil,
+                    dismissable = false,
+                    refresh_time_seconds = 1,
+                }
+                dialog:show()
 
-            local temporary = base_path .. ".part"
-            logger.info("Podcasts: downloading", episode.enclosure_url, "->", temporary)
+                local temporary = base_path .. ".part"
+                logger.info("Podcasts: downloading", episode.enclosure_url, "->", temporary)
 
-            local request_ok, ok, info = pcall(perform_request,
-                episode.enclosure_url, temporary, expected, dialog)
-            dialog:close()
+                local request_ok, ok, info = pcall(perform_request,
+                    episode.enclosure_url, temporary, expected, dialog)
+                dialog:close()
 
-            if not request_ok then
-                local request_err = ok
-                ok = false
-                info = tostring(request_err)
+                if not request_ok then
+                    local request_err = ok
+                    ok = false
+                    info = tostring(request_err)
+                end
+
+                if not ok then
+                    os.remove(temporary)
+                    logger.warn("Podcasts: download failed:", tostring(info))
+                    callback(false, tostring(info))
+                    return
+                end
+
+                local format, invalid = validate_download(temporary, info)
+                if not format then
+                    os.remove(temporary)
+                    callback(false, invalid)
+                    return
+                end
+
+                local destination = base_path .. "." .. format
+                os.remove(destination)
+                local renamed, rename_err = os.rename(temporary, destination)
+                if not renamed then
+                    os.remove(temporary)
+                    callback(false, rename_err or _("Cannot finalize downloaded file"))
+                    return
+                end
+
+                logger.info("Podcasts: downloaded", destination, info.bytes, "bytes",
+                    "content-type:", info.content_type or "none")
+                callback(true, destination)
             end
 
-            if not ok then
-                os.remove(temporary)
-                logger.warn("Podcasts: download failed:", tostring(info))
-                callback(false, tostring(info))
+            if not before_download then
+                start_download()
                 return
             end
 
-            local format, invalid = validate_download(temporary, info)
-            if not format then
-                os.remove(temporary)
-                callback(false, invalid)
-                return
+            local completed = false
+            local function on_space_ready(ok, err)
+                if completed then return end
+                completed = true
+                if not ok then
+                    callback(false, tostring(err or _("Could not prepare storage for download")))
+                    return
+                end
+                start_download()
             end
-
-            local destination = base_path .. "." .. format
-            os.remove(destination)
-            local renamed, rename_err = os.rename(temporary, destination)
-            if not renamed then
-                os.remove(temporary)
-                callback(false, rename_err or _("Cannot finalize downloaded file"))
-                return
-            end
-
-            logger.info("Podcasts: downloaded", destination, info.bytes, "bytes",
-                "content-type:", info.content_type or "none")
-            callback(true, destination)
+            local call_ok, err = pcall(before_download, episode, on_space_ready)
+            if not call_ok then on_space_ready(false, tostring(err)) end
         end)
     end
 
