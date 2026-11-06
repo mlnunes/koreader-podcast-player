@@ -1,121 +1,193 @@
 # Podcasts for KOReader
 
-Plugin KOReader para cadastrar feeds RSS/Atom, baixar episódios e reproduzi-los
-com o KinAMP. Para baixar episódios, os plugins KinAMP e free90MiB precisam
-estar instalados e habilitados.
+A KOReader plugin for adding RSS/Atom feeds and downloading episodes for offline
+playback. KinAMP must be installed and enabled for playback; `free90MiB` is
+required for downloads.
 
-## Estado atual
+## Current features
 
-Versão 0.3.12:
+Version 0.3.12:
 
-- biblioteca em grade, com até quatro podcasts por linha, capa do feed e nome
-  em fonte de 14 pt; feeds sem imagem usam uma capa substituta e as capas mostram
-  a quantidade de episódios não tocados quando maior que zero;
-- ação na lista de episódios para marcar todos como tocados de uma só vez;
-- imagens RSS/Atom são guardadas localmente em `podcasts/artwork/`; para feeds
-  já inscritos, use **Atualizar** uma vez para buscar as capas. São aceitas
-  imagens JPEG/PNG de até 4 MiB;
-- barra de tarefas na biblioteca com atalhos para adicionar feed, atualizar
-  feeds, abrir os controles de reprodução e consultar o diagnóstico do player;
-- os quatro atalhos ficam em uma faixa inferior própria, com rótulos e ícones
-  SVG incluídos no plugin; a lista de feeds e a paginação permanecem acima dela;
-- mensagem de orientação quando a biblioteca ainda não tem feeds;
-- cadastro, atualização e remoção de feeds;
-- feeds de até 20 MiB, mantendo no máximo os 500 primeiros episódios na ordem
-  recebida do RSS/Atom (normalmente do mais recente para o mais antigo);
-- integração com o plugin `free90MiB`: antes do download, solicita a liberação
-  do tamanho informado no RSS mais 40 MiB; após download ou exclusão, normaliza
-  o espaço livre. O feed precisa informar um tamanho válido para cada episódio;
-- busca de podcasts pelo nome no Podcast Index; as credenciais da API são
-  configuradas no KOReader e ficam no arquivo local `podcasts/podcast_index.lua`
-  (sem criptografia; não compartilhe esse arquivo);
-- resultados da busca mostram título e autor sem coluna lateral para acomodar
-  telas menores;
-- leitura de RSS 2.0 e Atom com itens que declarem um enclosure de áudio;
-- download para `koreader/podcasts/`, com gravação em arquivo temporário; os
-  caminhos são gravados em forma absoluta, porque o KinAMP roda a partir de
-  `/mnt/us/KinAMP` e não encontraria um caminho relativo;
-- migração automática dos caminhos relativos salvos pela 0.2.0 ao abrir a
-  biblioteca;
-- validação do arquivo baixado: o plugin recusa páginas HTML, JSON, XML e
-  qualquer conteúdo que não seja MP3, M4A/MP4, FLAC, WAV ou OGG Vorbis (Ogg
-  Opus é recusado porque o decodificador do KinAMP não o suporta). A extensão é
-  escolhida pelo conteúdo real, não pela URL, porque o KinAMP escolhe o
-  decodificador pela extensão;
-- reprodução de arquivos baixados pela fila do KinAMP;
-- gravação da posição de reprodução e retomada aproximada;
-- vigia de reprodução: se o KinAMP abrir o episódio mas não reportar duração
-  (sinal de que o decodificador falhou) ou se a posição parar de avançar com o
-  player dizendo que está tocando, o plugin tenta parar o player e avisa, em vez
-  de deixar o daemon preso;
-- atalho **Diagnóstico** na barra inferior, com o estado do backend e do player.
+- Grid library with up to four podcasts per row, feed artwork, and 14 pt titles.
+  Feeds without artwork use a placeholder; covers show the number of unplayed
+  episodes when that number is greater than zero.
+- Action to mark all episodes in a feed as played.
+- RSS/Atom artwork is cached locally in `podcasts/artwork/`. For existing feeds,
+  tap **Atualizar (Refresh)** once to fetch covers. JPEG/PNG images up to 4 MiB
+  are supported.
+- Bottom taskbar shortcuts to add a feed, refresh feeds, open playback controls,
+  and view player diagnostics.
+- The four shortcuts have their own labeled, SVG-icon taskbar; the feed list and
+  pagination remain above it.
+- Guidance message when the library is empty.
+- Add, refresh, and remove podcast feeds.
+- Feeds up to 20 MiB; the plugin keeps at most the first 500 episodes in the
+  order supplied by RSS/Atom (usually newest first).
+- Integration with `free90MiB`: before downloading, it requests space equal to
+  the episode size reported by the RSS feed plus 40 MiB. After a download or
+  deletion, it normalizes free space. The feed must provide a valid enclosure
+  size for each episode.
+- Podcast search by name through Podcast Index. API credentials are entered in
+  KOReader and stored locally in `podcasts/podcast_index.lua` without encryption;
+  do not share that file.
+- Search results show title and author in a single column for smaller screens.
+- RSS 2.0 and Atom feeds with audio enclosures.
+- Episodes are downloaded to `koreader/podcasts/` via a temporary file. Absolute
+  paths are stored because KinAMP runs from `/mnt/us/KinAMP` and cannot resolve
+  relative paths.
+- Automatic migration of relative paths saved by version 0.2.0.
+- Download validation rejects HTML, JSON, XML, and any content that is not MP3,
+  M4A/MP4, FLAC, WAV, or OGG Vorbis. Ogg Opus is rejected because KinAMP's decoder
+  does not support it. The file extension is chosen from the detected content,
+  not the URL, because KinAMP selects its decoder by extension.
+- Playback of downloaded files through the KinAMP queue.
+- Playback position saving and approximate resume.
+- Playback watchdog: if KinAMP opens an episode but reports no duration (usually
+  a decoder failure), or its position stops advancing while it reports playing,
+  the plugin tries to stop the player and warns the user instead of leaving the
+  daemon stuck.
+- **Diagnóstico (Diagnostics)** shortcut in the bottom taskbar showing backend
+  and player status.
 
-O download é feito para arquivo, não mantido inteiro na memória. O diálogo mostra
-progresso quando o feed informa o tamanho do enclosure. A chamada HTTP usada
- nesta versão é síncrona; durante um download longo, a interação com a interface
-pode ficar limitada. O cancelamento de download ainda não existe.
+Downloads are streamed to a file rather than held entirely in memory. The
+progress dialog shows progress when the feed provides the enclosure size. HTTP
+requests are synchronous in this version, so interaction may be limited during
+long downloads. Download cancellation is not available yet.
 
-O KinAMP mantém **uma única fila**. Ao tocar um episódio, a fila de músicas que
-estiver no KinAMP é substituída pela lista de episódios baixados - é o mesmo
-comportamento da tela de playlist do próprio KinAMP.
+KinAMP has **one queue**. Playing an episode replaces the current music queue
+with the list of downloaded podcast episodes, matching KinAMP's own playlist
+behavior.
 
-## Instalação para desenvolvimento
+## Usage tutorial
 
-Copie `podcast.koplugin/` para `koreader/plugins/` ou para a pasta de plugins
-externos do KOReader e reinicie o aplicativo. Instale e habilite também uma
-versão compatível do KinAMP. O plugin acessa a API Lua interna
-`kinamp_backend.play_from_index`; ela não é uma API pública estável, portanto
-atualizações do KinAMP podem exigir ajustes em `kinamp_client.lua`.
+### 1. Open the library
 
-## Atualizações pelo GitHub
+Open **Podcasts** from the KOReader menu. Feeds appear in a grid with up to four
+covers per row. A badge on a cover shows how many episodes are not marked as
+played; the badge disappears when that count reaches zero. Use the page controls
+to browse the library. The fixed bottom bar provides **Adicionar (Add)**,
+**Atualizar (Refresh)**, **Reprodução (Playback)**, and
+**Diagnóstico (Diagnostics)**.
 
-Para vincular esta instalação ao repositório, use o App Store do KOReader em
-**Plugins instalados → Match with URL**, ou o Plugin Manager em
-**Installed (not in repo) → Link to GitHub repo**. Informe:
+![Podcast library grid with covers and unplayed badges](screenshots/Lista%20de%20Podcasts.png)
+
+### 2. Add a podcast
+
+Tap **Adicionar (Add)**. To add a feed manually, enter its RSS/Atom URL and tap
+**Adicionar (Add)**. To search by name, tap **Buscar por nome (Search by name)**,
+enter a term, and choose a result. The selected RSS URL is returned to the add
+dialog; tap **Adicionar (Add)** to confirm.
+
+On the first search, enter your Podcast Index API key and secret. The secret is
+masked while typing. Credentials are stored in the KOReader data directory at
+`podcasts/podcast_index.lua` without encryption; do not share this file.
+
+![Add-feed dialog with manual URL entry and name search](screenshots/adicionar.png)
+
+After adding a feed, select it in the grid to view its episodes. **Atualizar
+(Refresh)** in the bottom bar refreshes registered feeds and fetches covers that
+are not cached yet. The plugin accepts feeds up to 20 MiB and keeps up to 500
+episodes in the order provided by the feed (usually newest first).
+
+### 3. Browse and download episodes
+
+The episode list shows each title, date, and status: **Not downloaded**,
+**Downloaded**, or **Played**. At the end of the list, **Mark all episodes as
+played** marks the entire feed at once. The menu also provides actions to refresh
+or remove the feed.
+
+![Episode list showing dates and download/play status](screenshots/lista%20de%20episodios.png)
+
+Tap an episode that is not downloaded and choose **Download episode**. Before
+the transfer, the plugin asks `free90MiB` to release the size reported in the
+RSS enclosure plus a 40 MiB safety margin. It requests free-space normalization
+after the transfer, even if the transfer fails. The feed must provide a valid
+enclosure size; without one, the download does not start, and the plugin still
+attempts to normalize free space after the aborted attempt.
+
+![Action menu for an episode that has not been downloaded](screenshots/baixar%20episodio.png)
+
+The downloaded file is checked for a KinAMP-compatible audio format and linked
+to the episode in the library. `free90MiB` manages only its own filler files; it
+does not delete books or other Kindle files.
+
+### 4. Play or delete a downloaded episode
+
+For a downloaded episode, the action menu offers **Play episode** and **Delete
+downloaded file**, as well as played/unplayed status. Deleting the audio also
+requests `free90MiB` to normalize free space.
+
+![Action menu for a downloaded episode](screenshots/episodio%20baixado.png)
+
+Tap **Play episode** or **Reprodução (Playback)** in the bottom bar to open
+KinAMP controls. You can pause/resume, go to the previous or next episode, or
+stop playback. Position is saved for approximate resuming. Because KinAMP has a
+single queue, playing a podcast replaces its current music queue with downloaded
+episodes from the selected feed.
+
+![KinAMP playback controls](screenshots/controle%20de%20reprodu%C3%A7ao.png)
+
+If something goes wrong, open **Diagnóstico (Diagnostics)** in the bottom bar to
+check the backend and player status. See [Playback troubleshooting](#playback-troubleshooting)
+below.
+
+## Development installation
+
+Copy `podcast.koplugin/` to `koreader/plugins/` or another KOReader external
+plugins directory, then restart KOReader. Install and enable compatible versions
+of KinAMP and `free90MiB` as well. This plugin uses KinAMP's internal Lua API
+`kinamp_backend.play_from_index`, which is not a stable public API; KinAMP updates
+may require changes to `kinamp_client.lua`.
+
+## Updating from GitHub
+
+To link an installed copy to this repository, use the KOReader App Store's
+**Installed Plugins → Match with URL**, or Plugin Manager's
+**Installed (not in repo) → Link to GitHub repo**. Enter:
 
 ```text
 mlnunes/koreader-podcast-player
 ```
 
-Depois, use **Check for updates** no plugin gerenciador para buscar versões
-novas. O App Store/Plugin Manager compara a versão local com `version` em
-`_meta.lua` no repositório.
+Then use **Check for updates** in the plugin manager. Plugin Manager compares the
+version in `_meta.lua`; App Store tracks changes to the linked repository.
 
-Para publicar uma atualização, altere a versão em `_meta.lua`, envie o commit
-para `main` e crie/envie uma tag correspondente, por exemplo `v0.3.13`. O GitHub
-Actions empacota os arquivos como `podcast.koplugin.zip` e cria a release. O
-repositório inclui uma primeira release `v0.3.10` como ponto de partida.
+To publish an update, bump the version in `_meta.lua`, push the commit to `main`,
+and create/push a matching tag, for example `v0.3.13`. GitHub Actions packages
+the plugin as `podcast.koplugin.zip` and creates a release. The repository's
+initial release was `v0.3.10`.
 
-O áudio baixado fica em:
+Downloaded audio is stored in:
 
 ```text
-<diretório de dados do KOReader>/podcasts/
+<KOReader data directory>/podcasts/
 ```
 
-## Diagnóstico de problemas de reprodução
+## Playback troubleshooting
 
-1. Abra **Podcasts**, toque em **Diagnóstico** na barra inferior e anote o estado mostrado.
-2. Ao atualizar de uma versão anterior, encerre uma instância presa do player
-   (`killall KinAMP-minimal`) antes de testar. O plugin só inicia uma instância
-   nova quando não há nenhuma escutando o FIFO; um daemon travado continua
-   aceitando comandos e precisa ser encerrado.
-3. Os logs úteis são:
-   - `koreader/crash.log` (no Kindle: `/mnt/us/koreader/crash.log`), com as
-     linhas `Podcasts: ...`;
-   - `/mnt/us/KinAMP/kinamp.log`, onde o KinAMP-minimal registra o que tentou
-     tocar e eventuais erros do decodificador. `Failed to open file with
-     miniaudio ... (Result: -7)` significa arquivo não encontrado: era o que
-     acontecia na 0.2.0, que salvava caminhos relativos.
-4. Se um episódio baixado antes da versão 0.2.0 não tocar, apague o download
-   (**Delete downloaded file**) e baixe de novo: ele pode ter sido salvo como
-   uma página de erro do servidor.
+1. Open **Podcasts → Diagnóstico (Diagnostics)** in the bottom bar and note the
+   reported status.
+2. When updating from an older version, stop a stuck player instance
+   (`killall KinAMP-minimal`) before testing. The plugin starts a new player only
+   when none is listening on the FIFO; a stuck daemon may still accept commands
+   and needs to be stopped.
+3. Useful logs:
+   - `koreader/crash.log` (on Kindle: `/mnt/us/koreader/crash.log`), including
+     `Podcasts: ...` lines;
+   - `/mnt/us/KinAMP/kinamp.log`, where KinAMP-minimal records playback attempts
+     and decoder errors. `Failed to open file with miniaudio ... (Result: -7)`
+     means the file could not be found; this happened in version 0.2.0, which
+     stored relative paths.
+4. If an episode downloaded before version 0.2.0 will not play, delete it using
+   **Delete downloaded file** and download it again; it may be an error page
+   saved from the server.
 
-Se o KinAMP-minimal ficar sem responder, encerre-o (`killall KinAMP-minimal`);
-o próximo play inicia uma instância nova.
+If KinAMP-minimal stops responding, stop it (`killall KinAMP-minimal`); the next
+play request starts a new instance.
 
-## Testes locais
+## Local tests
 
-Com LuaJIT instalado, rode na pasta pai do plugin:
+With LuaJIT installed, run these from the parent directory of the plugin:
 
 ```sh
 luajit podcast.koplugin/tests/test_feed_parser.lua
@@ -127,14 +199,13 @@ luajit podcast.koplugin/tests/test_podcast_index_client.lua
 luajit podcast.koplugin/tests/test_podcast_storage.lua
 ```
 
-Os testes cobrem RSS 2.0, Atom, XML inválido, identificação dos formatos de áudio,
-autenticação e resultados da busca Podcast Index, o vigia de reprodução
-(retomada, arquivo travado, fila fria e fim do episódio) e a gravação/migração dos
-caminhos absolutos da biblioteca, além do cálculo do espaço solicitado ao
-free90MiB. A interface, as operações de armazenamento e a rede real dependem do
-ambiente KOReader e devem ser testadas no emulador ou em um Kindle com jailbreak.
+The tests cover RSS 2.0, Atom, invalid XML, audio-format detection, Podcast Index
+authentication and results, playback monitoring (resume, stuck file, cold
+queue, and end of episode), absolute-path migration, and the space request
+calculation for `free90MiB`. UI, storage operations, and live network behavior
+must be tested in KOReader on an emulator or jailbroken Kindle.
 
-## Licença
+## License
 
-GPL-3.0, para manter compatibilidade com a integração e o código do KinAMP.
-Consulte <https://www.gnu.org/licenses/gpl-3.0.txt> para o texto da licença.
+GPL-3.0, to remain compatible with KinAMP integration and code. See
+<https://www.gnu.org/licenses/gpl-3.0.txt> for the license text.
