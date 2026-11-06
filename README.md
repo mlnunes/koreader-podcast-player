@@ -5,7 +5,7 @@ com o KinAMP. O player precisa estar instalado e habilitado separadamente.
 
 ## Estado atual
 
-Versão 0.3.9:
+Versão 0.3.10:
 
 - biblioteca em grade, com até quatro podcasts por linha, capa do feed e nome
   em fonte de 14 pt; feeds sem imagem usam uma capa substituta e as capas mostram
@@ -20,7 +20,7 @@ Versão 0.3.9:
   SVG incluídos no plugin; a lista de feeds e a paginação permanecem acima dela;
 - mensagem de orientação quando a biblioteca ainda não tem feeds;
 - cadastro, atualização e remoção de feeds;
-- feeds de até 10 MiB, mantendo no máximo os 500 primeiros episódios na ordem
+- feeds de até 20 MiB, mantendo no máximo os 500 primeiros episódios na ordem
   recebida do RSS/Atom (normalmente do mais recente para o mais antigo);
 - busca de podcasts pelo nome no Podcast Index; as credenciais da API são
   configuradas no KOReader e ficam no arquivo local `podcasts/podcast_index.lua`
